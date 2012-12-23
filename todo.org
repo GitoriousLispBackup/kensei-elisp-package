@@ -1,0 +1,132 @@
+Current TODO for v1.0.0
+
+* Ruby backend [0/2]
+** TODO TDD the most likely needed backend ops up front
+*** get account ids/names
+*** get folder list for account id
+*** get unread count for single account
+*** get total/unified unread count
+*** get list of emails for folder (w/ some metadata)
+include sort criteria param, return order numbers
+*** get all data for single email
+includes human readable version of email body
+*** synchronize mailbox now
+**** can offlineimpap give us some updates on progress that can be routed back to emacs?
+**** this is the most likely to be slow. Show some progress if likely to hang:
+(let ((progress-reporter
+       (make-progress-reporter "Updating mailbox..."
+                               0  100)))
+  (dotimes (k 100)
+    (sit-for 0.1)
+    (progress-reporter-update progress-reporter k))
+  (progress-reporter-done progress-reporter))
+*** set system to synchronize mailbox every N minutes
+sets up cronjob for it
+*** send email
+*** delete mail
+*** archive mail
+*** tag/file mail
+*** search opoerations
+**** across all accounts
+**** set up different perspective for searches: top list, bottom current selected
+**** sort criteria, reuse same fields as in general emails list
+**** Check out possible external tools for parsing and searching mboxes
+mu
+**** or build my own search stuff
+***** Can we get away with a simple grep across the imap mailbox?
+***** Or do we need to index it all somehow?
+
+**** support both structured search (separate page) and livesearch, ie type and show hits on the fly
+*** add account
+**** add correct stuff to .offlineimaprc, .msmtprc, etc
+* Emacs mode features [0/16]
+** TODO if kensei gem raises exception, present it in standard manner
+** TODO render folder/account list
+** TODO render folder contents on folder selection
+Builds on word done in folder list
+** TODO open/render single email
+** TODO write/send new email
+*** new perspective: single page
+*** use text or rmail mode?
+*** reuse built in emacs mail render stuff?
+** TODO update/synch mailbox
+*** this is the most likely to be slow. Show some progress if likely to hang:
+(let ((progress-reporter
+       (make-progress-reporter "Updating mailbox..."
+                               0  100)))
+  (dotimes (k 100)
+    (sit-for 0.1)
+    (progress-reporter-update progress-reporter k))
+  (progress-reporter-done progress-reporter))
+** TODO standardize timeouts and exception handling
+** TODO reply/reply all to existing message
+** TODO forward message
+** TODO delete mail
+** TODO archive mail
+** TODO tag mail
+** TODO download/save attachment
+** TODO attach one or more attachments
+** TODO search
+*** across all accounts
+*** set up different perspective for searches: top list, bottom current selected
+*** sort criteria, reuse same fields as in general emails list
+*** Check out possible external tools for parsing and searching mboxes
+mu
+*** or build my own search stuff
+**** Can we get away with a simple grep across the imap mailbox?
+**** Or do we need to index it all somehow?
+
+** TODO make it extensible with hooks all the obvious places
+* UX [0/10]
+** TODO colorize elements using font-face keywords etc
+   Check how it looks both in default theme and solarized+zenburn
+
+** TODO set up context-specific menu bar items
+** TODO make window setup more robust
+   - Always start with single window (C-x 1) before setting up the rest
+   - Dont split email list up into email contents before selecting a mail
+   - Only split if not already showing email
+   - Make possible to remove email window (until next time email is selected)
+** TODO make message lists sortable on multiple fields
+** TODO make message lists threadable
+** TODO handle large inboxes (thousands of entries) (paging?)
+Render XYZ first entries
+Links at bottom: "Show next 100 | Show next 1000 | Show all"
+** TODO auto-complete email recipients (should work with IDO etc)
+*** Approach 1: build up "quasi address book" in backend by parsing all the mails currently available offline
+*** Approach 2: or, can we interace with google adress book somehow?
+Just fricken use goobook for getting this
+** TODO multiple mailboxes, unified view
+** TODO automate setup of dependencies, config, accounts
+*** on start: check dependencies, guide installation if necessary
+*** if maildir or config files present, offer to back up and re-config
+*** automate config msmtp and offlineimap config
+*** add interactive functions to add/remove gmail account
+    "Seems you don't have any gmail accounts configured yet. Do so now? (yes/no)"
+    "Enter description of current account <example: 'My Personal Account'>:"
+    "Enter gmail email address:"
+    "Enter gmail password: "
+** TODO how much work is general imap support, not just gmail?
+*** Sign up for fastmail as well, see how much work it is to switch to?
+
+* Release it [0/5]
+** TODO add cheap features from mu4e, sparrow, thunderbird
+** TODO turn into elpa/marmelade package
+   handle dependencies properly
+s.el, dash.el etc
+** TODO create proper doc/site
+*** screencast/trailer: spotify:track:7ddOFzCHKmGlb1PP30Hlln
+** TODO solicit critical feedback
+marius
+cjno
+magnars
+syver
+odin
+stein morten
+august
+** TODO release 1.0.0 publically
+* REFERENCES
+ refer to sup for maildir handling code
+ https://gitorious.org/sup/mainline/blobs/master/lib/sup/maildir.rb
+ json parsing in emacs
+ http://edward.oconnor.cx/2006/03/json.el

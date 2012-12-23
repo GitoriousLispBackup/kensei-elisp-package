@@ -1,0 +1,6 @@
+---
+:watched_paths:
+- .
+:failure_regex: unexpected results
+:test_command: rake test
+:cli_mode: false
