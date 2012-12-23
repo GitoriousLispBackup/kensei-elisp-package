@@ -126,6 +126,7 @@
 (defconst kensei-folder-list-buffer-name "*kensei-folders*")
 (defconst kensei-email-list-buffer-name "*kensei-emails*")
 (defconst kensei-current-email-buffer-name "*kensei-email*")
+(defconst kensei-exceptions "*kensei-exceptions*")
 
 (defun kensei-all-windows-readonly (switch)
   (save-window-excursion
@@ -155,8 +156,8 @@
   ; set up initial state
   (save-window-excursion
     (kensei-update-folder-window)
-    (kensei-update-email-list)
-    (kensei-show-email))
+    ;;;TODO show email list for first/default selected folder
+    )
   (kensei-all-windows-readonly t))
 
 (defun kensei-start ()
@@ -178,10 +179,14 @@
 
 ;;; Logic specific to each of the main kensei windows
 
+
 (defun kensei-update-folder-window ()
   (switch-to-buffer kensei-folder-list-buffer-name)
   (erase-buffer)
-  (insert (kensei-fetch-folders "Gmail")))
+  ;;; TODO use exception handling to respond to problems in kensei-fetch-* and underlying backend call
+  ;;; TODO or use excected json structure to get what we want?
+  ;;(insert (cdr(assoc 'exception ))))
+  (insert (elt (kensei-fetch-account-list) 0)))
 
 (defun kensei-update-email-list ()
   (switch-to-buffer kensei-email-list-buffer-name)
@@ -192,6 +197,12 @@
   (switch-to-buffer kensei-current-email-buffer-name)
   (erase-buffer)
   (insert (kensei-fetch-email "Gmail" "INBOX" "1234")))
+
+;;; TODO add 'q' binding to remove the exception buffer and return to last buffer?
+(defun kensei-present-exception (e)
+  "Standard presentation of kensei errors in whatever buffer is active at the time"
+  (switch-to-buffer kensei-exceptions)
+  (insert e))
 
 ;; Support setting appearance, event-lambda-handling, model properties
 
@@ -231,22 +242,25 @@
   (interactive)
   (message (kensei-backend 'version ())))
 
-(defun kensei-fetch-folders (account-name)
-  (kensei-backend 'get-current-folders (list account-name)))
+(defun kensei-fetch-folders (account-id)
+  (kensei-backend 'folder-list (list account-id)))
 
-(defun kensei-fetch-emails (account-name folder-name)
-  (kensei-backend 'get-emails-in (list account-name folder-name)))
+(defun kensei-fetch-emails (account-id folder-name)
+  (kensei-backend 'get-emails-in (list account-id folder-name)))
 
-(defun kensei-fetch-email (account-name folder-name uid)
-  (kensei-backend 'get-email (list account-name folder-name uid)))
+(defun kensei-fetch-email (account-id folder-name uid)
+  (kensei-backend 'get-email (list account-id folder-name uid)))
+
+(defun kensei-fetch-account-list ()
+  (kensei-backend 'account-ids (list)))
 
 (defun kensei-add-gmail-account ()
   "Add offlineimap and msmtp config for a Gmail account"
   (interactive)
   (let ((address (read-string "Gmail email address: " "YOURUSERNAME@gmail.com"))
 	(password (read-string "Gmail password: " ""))
-	(account-name (read-string "Name of the account: " "personal-gmail-account")))
-    (kensei-backend 'add-gmail-account (list address password account-name))))
+	(account-id (read-string "Name of the account: " "personal-gmail-account")))
+    (kensei-backend 'add-gmail-account (list address password account-id))))
 
 ;;; TODO add background version of synch command? (Current one will freeze emacs until done)
 (defun kensei-synchronize ()
@@ -260,13 +274,12 @@
 (setq kensei-use-mock-backend nil) ;; Set to true in test suite
 
 (require 'json)
-(json-read-from-string "true")
 (json-encode t)
 
 ;; JSON EXAMPLES
 ;; Parsing
 ;;  (json-read-from-string "[true, 4.5]")
-;;  (json-read-from-string "{\"one\":\"one\",\"two\":true}")
+;; (json-read-from-string "{\"one\":\"one\ntwo\nthree\",\"two\":true}")
 ;; Encoding
 ;;  (json-encode '(1 2 3)) ;;"[1, 2, 3]"
 ;;  (json-encode '(:foo 1 :bar 2 :baz 3)) ;;"{\\"foo\\":1, \\"bar\\":2, \\"baz\\":3}"
@@ -278,7 +291,13 @@
 		  "kensei"))
 	(command (s-snake-case (symbol-name command)))
 	(params (s-join " " param-list)))
-    (shell-command-to-string (concat binary " " command " " params))))
+    (let ((result-json (json-read-from-string (shell-command-to-string (concat binary " " command " " params)))))
+;;      (let ((exception-mapping (assoc 'exception result-json)))
+;;	(if exception-mapping
+;;	    (kensei-present-exception (cdr exception-mapping))
+;;	    (cdr exception-mapping)
+;;	  result-json)))))
+      result-json)))
 
 
 ;; Tell Emacs that kensei is open for business
