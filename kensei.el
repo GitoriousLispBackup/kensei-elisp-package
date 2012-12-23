@@ -24,11 +24,10 @@
 
 (defun kensei-version ()
   (interactive)
-  (message "0.0.1"))
+  (message "0.0.2"))
 
 (load-file "dash.el")
 (load-file "s.el")
-
 
 ;;; Set up mode(s) for kensei
 
@@ -228,6 +227,10 @@
 
 ;; Backend/model interface
 
+(defun kensei-backend-version ()
+  (interactive)
+  (message (kensei-backend 'version ())))
+
 (defun kensei-fetch-folders (account-name)
   (kensei-backend 'get-current-folders (list account-name)))
 
@@ -237,12 +240,30 @@
 (defun kensei-fetch-email (account-name folder-name uid)
   (kensei-backend 'get-email (list account-name folder-name uid)))
 
+(defun kensei-add-gmail-account ()
+  "Add offlineimap and msmtp config for a Gmail account"
+  (interactive)
+  (let ((address (read-string "Gmail email address: " "YOURUSERNAME@gmail.com"))
+	(password (read-string "Gmail password: " ""))
+	(account-name (read-string "Name of the account: " "personal-gmail-account")))
+    (kensei-backend 'add-gmail-account (list address password account-name))))
+
+;;; TODO add background version of synch command? (Current one will freeze emacs until done)
+(defun kensei-synchronize ()
+  "Perform offlineimap synchronization of all accounts"
+  (interactive)
+  (message "Synchronizing mail folders...")
+  (message (kensei-backend 'synchronize-now ()))
+  (message "Synchronization done."))
+
+
 (setq kensei-use-mock-backend nil) ;; Set to true in test suite
 
 (require 'json)
 (json-read-from-string "true")
 (json-encode t)
 
+;; JSON EXAMPLES
 ;; Parsing
 ;;  (json-read-from-string "[true, 4.5]")
 ;;  (json-read-from-string "{\"one\":\"one\",\"two\":true}")
