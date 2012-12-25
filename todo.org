@@ -1,30 +1,30 @@
 Current TODO for v1.0.0
 
-* Emacs mode features [0/14]
-** TODO render folder/account list
-** TODO render folder contents on folder selection
-Builds on word done in folder list
-** TODO open/render single email
+* Emacs mode features [0/11]
+** TODO render account/folder list w/click events
+*** set click event on each folder/account in left sidebar
+**** update selected account/folder
+**** refresh everything
+**** (current email should fall back to topmost mail, or be disabled)
+*** clicking on actual account will do the same as clicking on INBOX
+*** in top level accountname, show unread mail count behind account name
+** TODO render email list w/click events
+*** set click event on each email line
+**** update selected uid
+**** refresh everything
+** TODO render current email
 ** TODO write/send new email
 *** new perspective: single page
 *** use text or rmail mode?
 *** reuse built in emacs mail render stuff?
-** TODO update/synch mailbox
-*** this is the most likely to be slow. Show some progress if likely to hang:
-(let ((progress-reporter
-       (make-progress-reporter "Updating mailbox..."
-                               0  100)))
-  (dotimes (k 100)
-    (sit-for 0.1)
-    (progress-reporter-update progress-reporter k))
-  (progress-reporter-done progress-reporter))
-** TODO reply/reply all to existing message
-** TODO forward message
+** TODO reply/reply all to mail
+** TODO forward mail
 ** TODO delete mail
 ** TODO archive mail
 ** TODO tag mail
-** TODO download/save attachment
-** TODO attach one or more attachments
+** TODO attachments
+*** download/save attachment
+*** attach one or more files
 ** TODO search
 *** across all accounts
 *** set up different perspective for searches: top list, bottom current selected
@@ -35,8 +35,11 @@ mu
 **** Can we get away with a simple grep across the imap mailbox?
 **** Or do we need to index it all somehow?
 
+* UX [0/14]
+** TODO handle account id/name with spaces
+*** quote it everywhere before sent to the backend?
 ** TODO make it extensible with hooks all the obvious places
-* UX [0/10]
+
 ** TODO colorize elements using font-face keywords etc
    Check how it looks both in default theme and solarized+zenburn
 
@@ -48,6 +51,17 @@ mu
    - Make possible to remove email window (until next time email is selected)
 ** TODO make message lists sortable on multiple fields
 ** TODO make message lists threadable
+** TODO improved imap synchronization
+*** asynch/background
+*** perform synch in chunks of X seconds, show progress if possible
+**** show some progress if likely to hang:
+(let ((progress-reporter
+       (make-progress-reporter "Updating mailbox..."
+                               0  100)))
+  (dotimes (k 100)
+    (sit-for 0.1)
+    (progress-reporter-update progress-reporter k))
+  (progress-reporter-done progress-reporter))
 ** TODO handle large inboxes (thousands of entries) (paging?)
 Render XYZ first entries
 Links at bottom: "Show next 100 | Show next 1000 | Show all"
@@ -55,16 +69,11 @@ Links at bottom: "Show next 100 | Show next 1000 | Show all"
 *** Approach 1: build up "quasi address book" in backend by parsing all the mails currently available offline
 *** Approach 2: or, can we interace with google adress book somehow?
 Just fricken use goobook for getting this
-** TODO multiple mailboxes, unified view
+** TODO unified view of inbox and some other shared gmail folders (Sent Mail etc)
 ** TODO automate setup of dependencies, config, accounts
-*** on start: check dependencies, guide installation if necessary
-*** if maildir or config files present, offer to back up and re-config
-*** automate config msmtp and offlineimap config
-*** add interactive functions to add/remove gmail account
-    "Seems you don't have any gmail accounts configured yet. Do so now? (yes/no)"
-    "Enter description of current account <example: 'My Personal Account'>:"
-    "Enter gmail email address:"
-    "Enter gmail password: "
+*** in kensei-start: check dependencies, guide installation of packages/gem if necessary
+*** on kensei-start: if no accounts: "no accounts found - would you like to add a gmail account?"
+** TODO add
 ** TODO how much work is general imap support, not just gmail?
 *** Sign up for fastmail as well, see how much work it is to switch to?
 

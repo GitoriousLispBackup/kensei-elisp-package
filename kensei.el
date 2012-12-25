@@ -22,12 +22,45 @@
 
 ;;; Version and dependencies
 
-(defun kensei-version ()
-  (interactive)
-  (message "0.0.2"))
+(defconst kensei-current-version "0.0.2")
 
 (load-file "dash.el")
 (load-file "s.el")
+
+
+;;; Logging and version reporting
+
+(defun kensei-version ()
+  (interactive)
+  (message kensei-current-version))
+
+(defun kensei-log (str)
+  (if kensei-debug
+      (save-window-excursion
+	(get-buffer-create kensei-log-buffer-name)
+	(switch-to-buffer kensei-log-buffer-name)
+	(insert str))))
+
+
+;;; Global state and constants (keep this to a minimum)
+
+(defconst kensei-folder-list-buffer-name "*kensei-folders*")
+(defconst kensei-email-list-buffer-name "*kensei-emails*")
+(defconst kensei-current-email-buffer-name "*kensei-email*")
+(defconst kensei-log-buffer-name "*kensei-log*")
+
+(setq kensei-debug t)
+(setq kensei-running nil)
+
+
+(defun kensei-init-state ()
+  "Set up initial default global state of Kensei (keep this small)"
+  (interactive)
+  (setq kensei-selected-account (car (kensei-fetch-account-list)))
+  (setq kensei-selected-folder (car (kensei-fetch-folders kensei-selected-account)))
+  (setq kensei-selected-email-uid "1") ;; TODO get uid of first email in current folder
+  )
+
 
 ;;; Set up mode(s) for kensei
 
@@ -121,24 +154,10 @@
   ;; TODO set local menu bar items
   (setq minor-mode 'kensei-email))
 
-;;; Setup and teardown of app state
 
-(defconst kensei-folder-list-buffer-name "*kensei-folders*")
-(defconst kensei-email-list-buffer-name "*kensei-emails*")
-(defconst kensei-current-email-buffer-name "*kensei-email*")
-(defconst kensei-exceptions "*kensei-exceptions*")
-
-(defun kensei-all-windows-readonly (switch)
-  (save-window-excursion
-    (switch-to-buffer kensei-folder-list-buffer-name)
-    (toggle-read-only switch)
-    (switch-to-buffer kensei-email-list-buffer-name)
-    (toggle-read-only switch)
-    (switch-to-buffer kensei-current-email-buffer-name)
-    (toggle-read-only switch)))
+;;; Setup and teardown of Kensei
 
 (defun kensei-init-windows ()
-  (kensei-all-windows-readonly -1)
   ;; create left window = folders
   (switch-to-buffer kensei-folder-list-buffer-name)
   (kensei-folder-list-mode)
@@ -153,21 +172,19 @@
   (other-window 1)
   (switch-to-buffer kensei-current-email-buffer-name)
   (kensei-current-email-mode)
-  ; set up initial state
-  (save-window-excursion
-    (kensei-update-folder-window)
-    ;;;TODO show email list for first/default selected folder
-    )
-  (kensei-all-windows-readonly t))
+  ;; Set everything readonly by default and load initial state
+  (kensei-refresh))
 
 (defun kensei-start ()
   "Save window configuration, set up kensei"
   (interactive)
-  ;;; TODO don't run if already in kensei mode
-  ;;; TODO check that dependencies are fulfilled, otherwise exit with helpful install instructions
-  (window-configuration-to-register :pre-kensei-fullscreen)
-  (delete-other-windows)
-  (kensei-init-windows))
+  (if (not kensei-running)
+      (progn
+	(window-configuration-to-register :pre-kensei-fullscreen)
+	(delete-other-windows)
+	(kensei-init-windows)
+	(kensei-init-state)
+	(setq kensei-running t))))
 
 (defun kensei-quit ()
   "Restores the previous window configuration and kills kensei buffers"
@@ -175,38 +192,26 @@
   (kill-buffer kensei-folder-list-buffer-name)
   (kill-buffer kensei-email-list-buffer-name)
   (kill-buffer kensei-current-email-buffer-name)
+  (setq kensei-running nil)
   (jump-to-register :pre-kensei-fullscreen))
 
-;;; Logic specific to each of the main kensei windows
 
-
-(defun kensei-update-folder-window ()
-  (switch-to-buffer kensei-folder-list-buffer-name)
-  (erase-buffer)
-  (let* ((accounts (kensei-fetch-account-list)))
-    (-each accounts (lambda (account-id)
-		      (insert account-id)
-		      (insert "\n")
-		      (let* ((folders (kensei-fetch-folders account-id)))
-			(-each folders (lambda (folder)
-					 (insert (concat " " folder))
-					 (insert "\n"))))))))
-
-
-(defun kensei-result-has-exception (json-blob)
-  (assoc 'exception json-blob))
-
-(defun kensei-update-email-list ()
-  (switch-to-buffer kensei-email-list-buffer-name)
-  (erase-buffer)
-  (insert (kensei-fetch-emails "Gmail" "INBOX")))
-
-(defun kensei-show-email ()
-  (switch-to-buffer kensei-current-email-buffer-name)
-  (erase-buffer)
-  (insert (kensei-fetch-email "Gmail" "INBOX" "1234")))
 
 ;; Support setting appearance, event-lambda-handling, model properties
+
+;; Example of setting a property 'uuid on a string, then setting a click event
+;;    that accesses value of the uuid property on of that string when clicked.
+
+;; (setq wat "WAT")
+;; (kensei-set-property! 'uuid 3333 wat)
+;; (kensei-set-onkey! [mouse-1] wat (lambda (event)
+;; 				   (interactive "e")
+;; 				   (let ((window (posn-window (event-end event)))
+;; 					 (pos (posn-point (event-end event)))
+;; 					 file)
+;; 				     (message "%s" (get-text-property pos 'uuid)))))
+;; (insert wat)WATWAT WAT  WAT;;; note: after inserting the string, it will only have the last set uuid, not any new ones set on the wat referenced string
+
 
 (defun kensei-set-property! (property-name property-value str)
   "Set arbitrary property on given string"
@@ -225,18 +230,42 @@
     (kensei-set-property! 'keymap map str))
   str)
 
-;; Example of setting a property 'uuid on a string, then setting a click event
-;;    that accesses value of the uuid property on of that string when clicked.
 
-;; (setq wat "WAT")
-;; (kensei-set-property! 'uuid 3333 wat)
-;; (kensei-set-onkey! [mouse-1] wat (lambda (event)
-;; 				   (interactive "e")
-;; 				   (let ((window (posn-window (event-end event)))
-;; 					 (pos (posn-point (event-end event)))
-;; 					 file)
-;; 				     (message "%s" (get-text-property pos 'uuid)))))
-;; (insert wat)WATWAT WAT  WAT;;; note: after inserting the string, it will only have the last set uuid, not any new ones set on the wat referenced string
+;;; Main Kensei frontend logic
+
+(defun kensei-refresh ()
+  "Refresh Kensei frontend state"
+  (interactive)
+  (save-window-excursion
+    (kensei-update-folder-window)
+    (kensei-update-email-list)
+    (kensei-update-current-email)))
+
+(defun kensei-update-folder-window ()
+  (switch-to-buffer kensei-folder-list-buffer-name)
+  (erase-buffer)
+  (let* ((accounts (kensei-fetch-account-list)))
+    (-each accounts (lambda (account-id)
+		      (insert account-id)
+		      (insert "\n")
+		      (let* ((folders (kensei-fetch-folders account-id)))
+			(-each folders (lambda (folder)
+					 (insert (concat " " folder))
+					 (insert "\n"))))))))
+
+(defun kensei-update-email-list ()
+  (switch-to-buffer kensei-email-list-buffer-name)
+  (erase-buffer)
+  (let ((email-list (kensei-fetch-emails kensei-selected-account kensei-selected-folder)))
+    (insert (prin1-to-string email-list))))
+
+(defun kensei-update-current-email ()
+  (switch-to-buffer kensei-current-email-buffer-name)
+  (erase-buffer)
+  (let ((email-data (kensei-fetch-email kensei-selected-account kensei-selected-folder kensei-selected-email-uid)))
+    (insert (prin1-to-string email-data))))
+
+
 
 ;; Backend/model interface
 
@@ -244,17 +273,19 @@
   (interactive)
   (message (kensei-backend 'version ())))
 
+(defun kensei-fetch-account-list ()
+  (kensei-backend 'account-ids (list)))
+
 (defun kensei-fetch-folders (account-id)
   (kensei-backend 'folder-list (list account-id)))
 
 (defun kensei-fetch-emails (account-id folder-name)
-  (kensei-backend 'get-emails-in (list account-id folder-name)))
+  (let ((quoted-folder-name (concat "'" folder-name "'")))
+    (kensei-backend 'email-list (list account-id quoted-folder-name "SORTORDER"))))
 
 (defun kensei-fetch-email (account-id folder-name uid)
-  (kensei-backend 'get-email (list account-id folder-name uid)))
-
-(defun kensei-fetch-account-list ()
-  (kensei-backend 'account-ids (list)))
+  (let ((quoted-folder-name (concat "'" folder-name "'")))
+    (kensei-backend 'get-email (list account-id quoted-folder-name uid))))
 
 (defun kensei-add-gmail-account ()
   "Add offlineimap and msmtp config for a Gmail account"
@@ -264,7 +295,6 @@
 	(account-id (read-string "Name of the account: " "personal-gmail-account")))
     (kensei-backend 'add-gmail-account (list address password account-id))))
 
-;;; TODO add background version of synch command? (Current one will freeze emacs until done)
 (defun kensei-synchronize ()
   "Perform offlineimap synchronization of all accounts"
   (interactive)
@@ -285,32 +315,20 @@
 ;;  (json-encode '(:foo 1 :bar 2 :baz 3)) ;;"{\\"foo\\":1, \\"bar\\":2, \\"baz\\":3}"
 
 
-
 (defun kensei-backend (command param-list)
   "Interface to the backend, all backend returns are json strings"
   (let* ((binary (if kensei-use-mock-backend
 		     "~/versioncontrolled/public/kensei/kensei-mock-backend.rb"
 		   "kensei"))
 	 (command (s-snake-case (symbol-name command)))
-	 (params (s-join " " param-list))
-	 (shell-result (shell-command-to-string (concat binary " " command " " params)))
-	 (json-array-type 'list)
-	 (result-json (json-read-from-string shell-result)))
-    (kensei-log (concat "\n\nKensei API call:\n" command))
-    (kensei-log (concat "\n\nKensei API response:\n" shell-result))
-    (kensei-indicate-any-api-exception result-json)
-    result-json))
-
-(setq kensei-debug t)
-
-(defun kensei-log (str)
-  "Writes current api call and result"
-  (if kensei-debug
-      (save-excursion
-	(progn
-	  (get-buffer-create "*kensei-log*")
-	  (switch-to-buffer "*kensei-log*")
-	  (insert str)))))
+	 (params (s-join " " param-list)))
+    (kensei-log (concat "\n\nKensei API call:\n" command " " params))
+    (let* ((shell-result (shell-command-to-string (concat binary " " command " " params)))
+	   (json-array-type 'list)
+	   (result-json (json-read-from-string shell-result)))
+      (kensei-log (concat "\n\nKensei API response:\n" shell-result))
+      (kensei-indicate-any-api-exception result-json)
+      result-json)))
 
 (defun kensei-indicate-any-api-exception (json-with-exception)
   "Standard presentation of kensei errors in whatever buffer is active at the time"
@@ -318,5 +336,7 @@
       (let ((exception-in-data (cdr (assoc 'exception json-with-exception))))
 	(if exception-in-data
 	    (message exception-in-data)))))
+
+
 
 (provide 'kensei)
