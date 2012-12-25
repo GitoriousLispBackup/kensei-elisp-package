@@ -184,7 +184,14 @@
   (switch-to-buffer kensei-folder-list-buffer-name)
   (erase-buffer)
   (let* ((accounts (kensei-fetch-account-list)))
-    (insert (s-join "\n" accounts))))
+    (-each accounts (lambda (account-id)
+		      (insert account-id)
+		      (insert "\n")
+		      (let* ((folders (kensei-fetch-folders account-id)))
+			(-each folders (lambda (folder)
+					 (insert (concat " " folder))
+					 (insert "\n"))))))))
+
 
 (defun kensei-result-has-exception (json-blob)
   (assoc 'exception json-blob))
@@ -247,7 +254,7 @@
   (kensei-backend 'get-email (list account-id folder-name uid)))
 
 (defun kensei-fetch-account-list ()
-  (kensei-backend 'account-idsd (list)))
+  (kensei-backend 'account-ids (list)))
 
 (defun kensei-add-gmail-account ()
   "Add offlineimap and msmtp config for a Gmail account"
@@ -277,7 +284,7 @@
 ;;  (json-encode '(1 2 3)) ;;"[1, 2, 3]"
 ;;  (json-encode '(:foo 1 :bar 2 :baz 3)) ;;"{\\"foo\\":1, \\"bar\\":2, \\"baz\\":3}"
 
-;;; TODO add option to turn on debugging: will dump api calls/params and the result of the call
+
 
 (defun kensei-backend (command param-list)
   "Interface to the backend, all backend returns are json strings"
@@ -289,8 +296,21 @@
 	 (shell-result (shell-command-to-string (concat binary " " command " " params)))
 	 (json-array-type 'list)
 	 (result-json (json-read-from-string shell-result)))
+    (kensei-log (concat "\n\nKensei API call:\n" command))
+    (kensei-log (concat "\n\nKensei API response:\n" shell-result))
     (kensei-indicate-any-api-exception result-json)
     result-json))
+
+(setq kensei-debug t)
+
+(defun kensei-log (str)
+  "Writes current api call and result"
+  (if kensei-debug
+      (save-excursion
+	(progn
+	  (get-buffer-create "*kensei-log*")
+	  (switch-to-buffer "*kensei-log*")
+	  (insert str)))))
 
 (defun kensei-indicate-any-api-exception (json-with-exception)
   "Standard presentation of kensei errors in whatever buffer is active at the time"
@@ -298,7 +318,5 @@
       (let ((exception-in-data (cdr (assoc 'exception json-with-exception))))
 	(if exception-in-data
 	    (message exception-in-data)))))
-
-;; Tell Emacs that kensei is open for business
 
 (provide 'kensei)
