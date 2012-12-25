@@ -182,8 +182,10 @@
       (progn
 	(window-configuration-to-register :pre-kensei-fullscreen)
 	(delete-other-windows)
-	(kensei-init-windows)
 	(kensei-init-state)
+	(kensei-init-windows)
+	(sit-for 0.5)
+	(kensei-synchronize)
 	(setq kensei-running t))))
 
 (defun kensei-quit ()
@@ -300,7 +302,8 @@
   (interactive)
   (message "Synchronizing mail folders...")
   (message (kensei-backend 'synchronize-now ()))
-  (message "Synchronization done."))
+  (message "Synchronization done.")
+  (kensei-refresh))
 
 (require 'json)
 (json-encode t)
