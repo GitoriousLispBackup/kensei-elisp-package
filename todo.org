@@ -1,7 +1,6 @@
 Current TODO for v1.0.0
 
-* Emacs mode features [0/15]
-** TODO if kensei gem raises exception, present it in standard manner
+* Emacs mode features [0/14]
 ** TODO render folder/account list
 ** TODO render folder contents on folder selection
 Builds on word done in folder list

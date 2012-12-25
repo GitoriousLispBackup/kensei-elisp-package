@@ -183,10 +183,11 @@
 (defun kensei-update-folder-window ()
   (switch-to-buffer kensei-folder-list-buffer-name)
   (erase-buffer)
-  ;;; TODO use exception handling to respond to problems in kensei-fetch-* and underlying backend call
-  ;;; TODO or use excected json structure to get what we want?
-  ;;(insert (cdr(assoc 'exception ))))
-  (insert (elt (kensei-fetch-account-list) 0)))
+  (let* ((accounts (kensei-fetch-account-list)))
+    (insert (s-join "\n" accounts))))
+
+(defun kensei-result-has-exception (json-blob)
+  (assoc 'exception json-blob))
 
 (defun kensei-update-email-list ()
   (switch-to-buffer kensei-email-list-buffer-name)
@@ -197,12 +198,6 @@
   (switch-to-buffer kensei-current-email-buffer-name)
   (erase-buffer)
   (insert (kensei-fetch-email "Gmail" "INBOX" "1234")))
-
-;;; TODO add 'q' binding to remove the exception buffer and return to last buffer?
-(defun kensei-present-exception (e)
-  "Standard presentation of kensei errors in whatever buffer is active at the time"
-  (switch-to-buffer kensei-exceptions)
-  (insert e))
 
 ;; Support setting appearance, event-lambda-handling, model properties
 
@@ -252,7 +247,7 @@
   (kensei-backend 'get-email (list account-id folder-name uid)))
 
 (defun kensei-fetch-account-list ()
-  (kensei-backend 'account-ids (list)))
+  (kensei-backend 'account-idsd (list)))
 
 (defun kensei-add-gmail-account ()
   "Add offlineimap and msmtp config for a Gmail account"
@@ -270,11 +265,9 @@
   (message (kensei-backend 'synchronize-now ()))
   (message "Synchronization done."))
 
-
-(setq kensei-use-mock-backend nil) ;; Set to true in test suite
-
 (require 'json)
 (json-encode t)
+(setq kensei-use-mock-backend nil) ;; Set to true in test suite
 
 ;; JSON EXAMPLES
 ;; Parsing
@@ -284,21 +277,27 @@
 ;;  (json-encode '(1 2 3)) ;;"[1, 2, 3]"
 ;;  (json-encode '(:foo 1 :bar 2 :baz 3)) ;;"{\\"foo\\":1, \\"bar\\":2, \\"baz\\":3}"
 
+;;; TODO add option to turn on debugging: will dump api calls/params and the result of the call
+
 (defun kensei-backend (command param-list)
   "Interface to the backend, all backend returns are json strings"
-  (let ((binary (if kensei-use-mock-backend
-		    "~/versioncontrolled/public/kensei/kensei-mock-backend.rb"
-		  "kensei"))
-	(command (s-snake-case (symbol-name command)))
-	(params (s-join " " param-list)))
-    (let ((result-json (json-read-from-string (shell-command-to-string (concat binary " " command " " params)))))
-;;      (let ((exception-mapping (assoc 'exception result-json)))
-;;	(if exception-mapping
-;;	    (kensei-present-exception (cdr exception-mapping))
-;;	    (cdr exception-mapping)
-;;	  result-json)))))
-      result-json)))
+  (let* ((binary (if kensei-use-mock-backend
+		     "~/versioncontrolled/public/kensei/kensei-mock-backend.rb"
+		   "kensei"))
+	 (command (s-snake-case (symbol-name command)))
+	 (params (s-join " " param-list))
+	 (shell-result (shell-command-to-string (concat binary " " command " " params)))
+	 (json-array-type 'list)
+	 (result-json (json-read-from-string shell-result)))
+    (kensei-indicate-any-api-exception result-json)
+    result-json))
 
+(defun kensei-indicate-any-api-exception (json-with-exception)
+  "Standard presentation of kensei errors in whatever buffer is active at the time"
+  (if (listp json-with-exception)
+      (let ((exception-in-data (cdr (assoc 'exception json-with-exception))))
+	(if exception-in-data
+	    (message exception-in-data)))))
 
 ;; Tell Emacs that kensei is open for business
 
