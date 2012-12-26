@@ -186,7 +186,8 @@
 	(kensei-init-state)
 	(kensei-init-windows)
 	(sit-for 0.5)
-	(kensei-synchronize)
+	(if kensei-synch-on-startup
+	    (kensei-synchronize))
 	(setq kensei-running t))))
 
 (defun kensei-quit ()
@@ -249,12 +250,18 @@
   (erase-buffer)
   (let* ((accounts (kensei-fetch-account-list)))
     (-each accounts (lambda (account-id)
-		      (let ((account-line (concat account-id "\n")))
-			(insert account-line))
+		      (insert (kensei-clickable-account-id account-id))
 		      (let* ((folders (kensei-fetch-folders account-id)))
 			(-each folders (lambda (folder)
-					 (insert (concat " " folder))
-					 (insert "\n"))))))))
+					 (insert (kensei-clickable-foldername "wat" folder)))))))))
+
+(defun kensei-clickable-account-id (account-id)
+  (let ((account-line (concat account-id "\n")))
+    account-line))
+
+(defun kensei-clickable-foldername (account-id folder)
+  (let ((folder-line (concat " " folder "\n")))
+    folder-line))
 
 (defun kensei-refresh-email-list ()
   (switch-to-buffer kensei-email-list-buffer-name)
