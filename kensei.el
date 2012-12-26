@@ -34,12 +34,12 @@
   (interactive)
   (message kensei-current-version))
 
-(defun kensei-log (str)
+(defun kensei-log (data)
   (if kensei-debug
       (save-window-excursion
 	(get-buffer-create kensei-log-buffer-name)
 	(switch-to-buffer kensei-log-buffer-name)
-	(insert str))))
+	(insert (concat data "\n\n" )))))
 
 
 ;;; Global state and constants (keep this to a minimum)
@@ -48,17 +48,17 @@
 (defconst kensei-email-list-buffer-name "*kensei-emails*")
 (defconst kensei-current-email-buffer-name "*kensei-email*")
 (defconst kensei-log-buffer-name "*kensei-log*")
+(defconst kensei-exceptions-buffer-name "*kensei-exceptions*")
 
 (setq kensei-debug t)
 (setq kensei-running nil)
-
 
 (defun kensei-init-state ()
   "Set up initial default global state of Kensei (keep this small)"
   (interactive)
   (setq kensei-selected-account (car (kensei-fetch-account-list)))
   (setq kensei-selected-folder (car (kensei-fetch-folders kensei-selected-account)))
-  (setq kensei-selected-email-uid "1") ;; TODO get uid of first email in current folder
+  (setq kensei-selected-email-uid "1") ;; TODO get uid of top email in selected folder
   )
 
 
@@ -295,13 +295,15 @@
   (let ((address (read-string "Gmail email address: " "YOURUSERNAME@gmail.com"))
 	(password (read-string "Gmail password: " ""))
 	(account-id (read-string "Name of the account: " "personal-gmail-account")))
-    (kensei-backend 'add-gmail-account (list address password account-id))))
+    (kensei-backend 'add-gmail-account (list address password account-id)))
+  (kensei-refresh)
+  (message "New account added. Restart Kensei or run 'M-x kensei-synchronize' to synch your emails."))
 
 (defun kensei-synchronize ()
   "Perform offlineimap synchronization of all accounts"
   (interactive)
   (message "Synchronizing mail folders...")
-  (message (kensei-backend 'synchronize-now ()))
+  (kensei-backend 'synchronize-now ())
   (message "Synchronization done.")
   (kensei-refresh))
 
@@ -325,11 +327,11 @@
 		   "kensei"))
 	 (command (s-snake-case (symbol-name command)))
 	 (params (s-join " " param-list)))
-    (kensei-log (concat "\n\nKensei API call:\n" command " " params))
+    (kensei-log (concat "API request: " command " " params))
     (let* ((shell-result (shell-command-to-string (concat binary " " command " " params)))
 	   (json-array-type 'list)
 	   (result-json (json-read-from-string shell-result)))
-      (kensei-log (concat "\n\nKensei API response:\n" shell-result))
+      (kensei-log (concat "API response: " shell-result))
       (kensei-indicate-any-api-exception result-json)
       result-json)))
 
@@ -338,8 +340,10 @@
   (if (listp json-with-exception)
       (let ((exception-in-data (cdr (assoc 'exception json-with-exception))))
 	(if exception-in-data
-	    (message exception-in-data)))))
-
-
+	    (progn
+	      (split-window-below nil)
+	      (switch-to-buffer kensei-exceptions-buffer-name)
+	      (insert (concat "Exception: " exception-in-data))
+	      (kensei-log (concat "Exception: " exception-in-data)))))))
 
 (provide 'kensei)
