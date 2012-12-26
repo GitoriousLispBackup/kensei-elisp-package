@@ -58,10 +58,8 @@
   "Set up initial default global state of Kensei (keep this small)"
   (interactive)
   (setq kensei-selected-account (car (kensei-fetch-account-list)))
-  (setq kensei-selected-folder (car (kensei-fetch-folders kensei-selected-account)))
-  (setq kensei-selected-email-uid "1") ;; TODO get uid of top email in selected folder
-  )
-
+  (setq kensei-selected-folder "INBOX")
+  (setq kensei-selected-email-uid nil))
 
 ;;; Set up mode(s) for kensei
 
@@ -117,14 +115,27 @@
   (kensei-mode)
   ;; Window-local keybindings
   (local-set-key "\t" '(lambda () (interactive)(message "todo: cycle visibility")))
-  (local-set-key (kbd "<RET>") '(lambda () (interactive)(message "todo: choose folder")))
+  (local-set-key (kbd "<RET>") '(lambda ()
+				  (interactive)
+				  (let* ((marked-account (get-text-property (point) 'account-id))
+					 (marked-folder (get-text-property (point) 'folder-id)))
+				    (setq kensei-selected-account marked-account)
+				    (setq kensei-selected-folder marked-folder))
+				  (save-excursion (kensei-refresh))))
   (setq minor-mode 'kensei-folders))
 
 (defun kensei-email-list-mode ()
   (kensei-mode)
   ;; Window-local keybindings
   (local-set-key "\t" '(lambda () (interactive)(message "todo: tab=cycle visiblity of replies")))
-  (local-set-key (kbd "<RET>") '(lambda () (interactive)(message "todo: enter/click=show current mail")))
+
+  (local-set-key (kbd "<RET>") '(lambda ()
+				  (interactive)
+				  (let* ((marked-email (get-text-property (point) 'uid)))
+				    (setq kensei-selected-email-uid marked-email))
+				  (save-excursion (kensei-refresh))))
+
+
   (local-set-key "d" '(lambda () (interactive)(message "todo: d=mark for deletion")))
   (local-set-key "D" '(lambda () (interactive)(message "todo: D=delete mail now")))
   (local-set-key "a" '(lambda () (interactive)(message "todo: a=mark for archiving")))
@@ -253,14 +264,43 @@
 		      (insert (kensei-rendered-account-line account-id))
 		      (let ((folders (kensei-fetch-folders account-id)))
 			(-each folders (lambda (folder)
-					 (insert (kensei-rendered-folder-line "wat" folder)))))))))
+					 (insert (kensei-rendered-folder-line account-id folder)))))))))
 
 (defun kensei-rendered-account-line (account-id)
-  (let ((account-line (concat account-id "\n")))
+  (let* ((account-line (concat account-id "\n")))
+    (if (string-equal account-id kensei-selected-account)
+	(kensei-set-face! 'underline account-line))
+    (kensei-set-property! 'account-id account-id account-line)
+    (kensei-set-property! 'folder-id "INBOX" account-line)
+    (let ((onselect (lambda (event)
+		      (interactive "e")
+		      (let* ((window (posn-window (event-end event)))
+			     (pos (posn-point (event-end event)))
+			     (clicked-account (get-text-property pos 'account-id))
+			     (clicked-folder (get-text-property pos 'folder-id)))
+			(setq kensei-selected-folder clicked-folder)
+			(setq kensei-selected-account clicked-account))
+		      (kensei-refresh))))
+      (kensei-set-onkey! [mouse-1] account-line onselect))
     account-line))
 
 (defun kensei-rendered-folder-line (account-id folder)
-  (let ((folder-line (concat " " folder "\n")))
+  (let* ((folder-line (concat "  " folder "\n")))
+    (if (and (string-equal folder kensei-selected-folder)
+	     (string-equal account-id kensei-selected-account))
+	(kensei-set-face! 'bold folder-line))
+    (kensei-set-property! 'account-id account-id folder-line)
+    (kensei-set-property! 'folder-id folder folder-line)
+    (let ((onselect (lambda (event)
+		      (interactive "e")
+		      (let* ((window (posn-window (event-end event)))
+			     (pos (posn-point (event-end event)))
+			     (clicked-account (get-text-property pos 'account-id))
+			     (clicked-folder (get-text-property pos 'folder-id)))
+			(setq kensei-selected-folder clicked-folder)
+			(setq kensei-selected-account clicked-account))
+		      (kensei-refresh))))
+      (kensei-set-onkey! [mouse-1] folder-line onselect))
     folder-line))
 
 (defun kensei-refresh-email-list ()
@@ -271,16 +311,32 @@
 		    (insert (kensei-rendered-email-line email))))))
 
 (defun kensei-rendered-email-line (email)
-  (concat (prin1-to-string email) "\n"))
+  (let ((email-line (concat (cdr (assoc 'from email)) "      "
+			    (cdr (assoc 'subject email))
+			    "\n"))
+	(uid (cdr (assoc 'uid email))))
+    (if (string-equal uid kensei-selected-email-uid)
+	(kensei-set-face! 'bold email-line))
+    (kensei-set-property! 'uid uid email-line)
+    (let ((onselect (lambda (event)
+		      (interactive "e")
+		      (let* ((window (posn-window (event-end event)))
+			     (pos (posn-point (event-end event)))
+			     (clicked-email (get-text-property pos 'uid)))
+			(setq kensei-selected-email-uid clicked-email))
+		      (kensei-refresh))))
+      (kensei-set-onkey! [mouse-1] email-line onselect))
+  email-line))
 
 (defun kensei-refresh-current-email ()
   (switch-to-buffer kensei-current-email-buffer-name)
   (erase-buffer)
-  (let ((email (kensei-fetch-email kensei-selected-account kensei-selected-folder kensei-selected-email-uid)))
-    (insert (kensei-rendered-email email))))
+  (if kensei-selected-email-uid
+      (let ((email (kensei-fetch-email kensei-selected-account kensei-selected-folder kensei-selected-email-uid)))
+	(insert (kensei-rendered-email email)))))
 
 (defun kensei-rendered-email (email)
-  (prin1-to-string email))
+  (cdr (assoc 'body email)))
 
 
 ;; Backend/model interface
@@ -324,15 +380,6 @@
 (require 'json)
 (json-encode t)
 (setq kensei-use-mock-backend nil) ;; Set to true in test suite
-
-;; JSON EXAMPLES
-;; Parsing
-;;  (json-read-from-string "[true, 4.5]")
-;; (json-read-from-string "{\"one\":\"one\ntwo\nthree\",\"two\":true}")
-;; Encoding
-;;  (json-encode '(1 2 3)) ;;"[1, 2, 3]"
-;;  (json-encode '(:foo 1 :bar 2 :baz 3)) ;;"{\\"foo\\":1, \\"bar\\":2, \\"baz\\":3}"
-
 
 (defun kensei-backend (command param-list)
   "Interface to the backend, all backend returns are json strings"

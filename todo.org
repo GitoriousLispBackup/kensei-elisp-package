@@ -1,22 +1,23 @@
 Current TODO for v1.0.0
 
-* Emacs mode features [0/11]
+* Emacs mode features [0/12]
 ** TODO render account/folder list w/click events
-*** set click event on each folder/account in left sidebar
-**** update selected account/folder
-**** refresh everything
-**** (current email should fall back to topmost mail, or be disabled)
-*** clicking on actual account will do the same as clicking on INBOX
 *** in top level accountname, show unread mail count behind account name
 ** TODO render email list w/click events
+*** render of currently selected email line: bold it?
 *** set click event on each email line
 **** update selected uid
 **** refresh everything
 ** TODO render current email
+figure out if mail body has html content
+html2text for rendering html content as ascii
+render images - just search for image: links
 ** TODO write/send new email
 *** new perspective: single page
 *** use text or rmail mode?
-*** reuse built in emacs mail render stuff?
+*** must handle all to/from headers when replying/reply to all
+*** don't use html2text here
+we want to reply - sometimes inline - without hidden modifications of original content
 ** TODO reply/reply all to mail
 ** TODO forward mail
 ** TODO delete mail
@@ -35,6 +36,7 @@ mu
 **** Can we get away with a simple grep across the imap mailbox?
 **** Or do we need to index it all somehow?
 
+** TODO per-account signatures
 * UX [0/14]
 ** TODO handle account id/name with spaces
 *** quote it everywhere before sent to the backend?
@@ -78,12 +80,12 @@ Just fricken use goobook for getting this
 *** Sign up for fastmail as well, see how much work it is to switch to?
 
 * Release it [0/5]
-** TODO add cheap features from mu4e, sparrow, thunderbird
 ** TODO turn into elpa/marmelade package
    handle dependencies properly
 s.el, dash.el etc
 ** TODO create proper doc/site
 *** screencast/trailer: spotify:track:7ddOFzCHKmGlb1PP30Hlln
+** TODO add cheap features from mu4e, sparrow, thunderbird
 ** TODO solicit critical feedback
 marius
 cjno
@@ -94,7 +96,10 @@ stein morten
 august
 ** TODO release 1.0.0 publically
 * REFERENCES
- refer to sup for maildir handling code
- https://gitorious.org/sup/mainline/blobs/master/lib/sup/maildir.rb
- json parsing in emacs
- http://edward.oconnor.cx/2006/03/json.el
+
+ Standing on the shoulders of giants: I've used the following two
+ projects for inspiration and ideas along the way.
+
+ sup: https://gitorious.org/sup/mainline/blobs/master/lib/sup/maildir.rb
+
+ mu4e: https://github.com/djcb/mu/blob/master/mu4e/
