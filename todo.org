@@ -1,13 +1,12 @@
 Current TODO for v1.0.0
 
-* Emacs mode features [0/12]
+* Emacs mode features [0/13]
 ** TODO render account/folder list w/click events
 *** in top level accountname, show unread mail count behind account name
+*** in each foldername, show unread count
+*** handle foldernames with spaces in em
 ** TODO render email list w/click events
-*** render of currently selected email line: bold it?
-*** set click event on each email line
-**** update selected uid
-**** refresh everything
+*** danling final line?
 ** TODO render current email
 figure out if mail body has html content
 html2text for rendering html content as ascii
@@ -37,11 +36,12 @@ mu
 **** Or do we need to index it all somehow?
 
 ** TODO per-account signatures
-* UX [0/14]
-** TODO handle account id/name with spaces
-*** quote it everywhere before sent to the backend?
+* UX [0/15]
+** TODO handle account names with spaces in 'em
 ** TODO make it extensible with hooks all the obvious places
 
+** TODO improve performance
+*** cut down number of shell-commands - coarser granularity/command api?
 ** TODO colorize elements using font-face keywords etc
    Check how it looks both in default theme and solarized+zenburn
 
