@@ -248,33 +248,39 @@
 (defun kensei-refresh-folder-window ()
   (switch-to-buffer kensei-folder-list-buffer-name)
   (erase-buffer)
-  (let* ((accounts (kensei-fetch-account-list)))
+  (let ((accounts (kensei-fetch-account-list)))
     (-each accounts (lambda (account-id)
-		      (insert (kensei-clickable-account-id account-id))
-		      (let* ((folders (kensei-fetch-folders account-id)))
+		      (insert (kensei-rendered-account-line account-id))
+		      (let ((folders (kensei-fetch-folders account-id)))
 			(-each folders (lambda (folder)
-					 (insert (kensei-clickable-foldername "wat" folder)))))))))
+					 (insert (kensei-rendered-folder-line "wat" folder)))))))))
 
-(defun kensei-clickable-account-id (account-id)
+(defun kensei-rendered-account-line (account-id)
   (let ((account-line (concat account-id "\n")))
     account-line))
 
-(defun kensei-clickable-foldername (account-id folder)
+(defun kensei-rendered-folder-line (account-id folder)
   (let ((folder-line (concat " " folder "\n")))
     folder-line))
 
 (defun kensei-refresh-email-list ()
   (switch-to-buffer kensei-email-list-buffer-name)
   (erase-buffer)
-  (let ((email-list (kensei-fetch-emails kensei-selected-account kensei-selected-folder)))
-    (insert (prin1-to-string email-list))))
+  (let ((emails (kensei-fetch-emails kensei-selected-account kensei-selected-folder)))
+    (-each emails (lambda (email)
+		    (insert (kensei-rendered-email-line email))))))
+
+(defun kensei-rendered-email-line (email)
+  (concat (prin1-to-string email) "\n"))
 
 (defun kensei-refresh-current-email ()
   (switch-to-buffer kensei-current-email-buffer-name)
   (erase-buffer)
-  (let ((email-data (kensei-fetch-email kensei-selected-account kensei-selected-folder kensei-selected-email-uid)))
-    (insert (prin1-to-string email-data))))
+  (let ((email (kensei-fetch-email kensei-selected-account kensei-selected-folder kensei-selected-email-uid)))
+    (insert (kensei-rendered-email email))))
 
+(defun kensei-rendered-email (email)
+  (prin1-to-string email))
 
 
 ;; Backend/model interface
